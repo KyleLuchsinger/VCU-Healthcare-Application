@@ -1,6 +1,6 @@
 My groupmembers are:
-- XXXX
-- XXXX
+- Sriram Sathvik Vangipurapu
+- Nima behboudi
 - XXXX
 - XXXX
 
