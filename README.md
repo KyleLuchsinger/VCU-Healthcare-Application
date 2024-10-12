@@ -2,7 +2,7 @@ Group Members:
 - Sriram Sathvik Vangipurapu
 - Nima Behboudi
 - Kyle Luchsinger
-- XXXX
+- Bilal Othman
 - XXXX
 - XXXX
 
