@@ -7,6 +7,7 @@ Group Members:
 - XXXX
 
 ------------------ Project Information ------------------
+
 The goal of this project is to develop a user-friendly medical application designed to streamline healthcare management for both patients and providers. The application will provide an intuitive interface for patients to easily schedule, manage, and cancel appointments, as well as handle their prescriptions. For providers, it will facilitate the creation and management of patient medical histories and prescriptions, offering a comprehensive solution to healthcare administration.
 
 ---- Functional Requirements ----
