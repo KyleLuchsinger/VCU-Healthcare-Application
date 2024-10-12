@@ -1,7 +1,7 @@
 My groupmembers are:
 - Sriram Sathvik Vangipurapu
-- Nima behboudi
-- XXXX
+- Nima Behboudi
+- Kyle Luchsinger
 - XXXX
 
 
