@@ -3,7 +3,7 @@ Group Members:
 - Nima Behboudi
 - Kyle Luchsinger
 - Bilal Othman
-- XXXX
+- Kabita Chand
 - XXXX
 
 ------------------ Project Information ------------------
