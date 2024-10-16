@@ -4,7 +4,7 @@ Group Members:
 - Kyle Luchsinger
 - Bilal Othman
 - Kabita Chand
-- XXXX
+- Fredy Balibuno
 
 ------------------ Project Information ------------------
 
