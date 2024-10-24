@@ -1,0 +1,345 @@
+<!-- File: WebApp.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2 {
+            color: #444;
+        }
+
+        #loginSection, #signupSection, #mainMenu, #editAppointmentsSection, #newAppointmentSection {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="text"], input[type="password"], input[type="date"], select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        #appointmentList {
+            margin-top: 20px;
+        }
+
+        #appointmentList ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #appointmentList li {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        .message {
+            margin: 10px 0;
+            color: red;
+        }
+
+        #loadingSpinner {
+            text-align: center;
+            margin: 20px 0;
+            display: none; /* Hidden by default */
+        }
+    </style>
+    <script>
+        let appointments = [];  // Array to store appointments
+        let currentUser = ''; // Store the current logged-in user
+
+        // Show the login section on page load
+        window.onload = function() {
+            document.getElementById('loginSection').style.display = 'block';
+        };
+
+        // Show signup section
+        function showSignup() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('signupSection').style.display = 'block';
+        }
+
+        // Show login section
+        function showLogin() {
+            document.getElementById('signupSection').style.display = 'none';
+            document.getElementById('loginSection').style.display = 'block';
+        }
+
+        // Handle login
+        function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            google.script.run.withSuccessHandler(response => {
+                if (response.success) {
+                    currentUser = username; // Store the username of the logged-in user
+                    document.getElementById('currentUserName').textContent = response.name; // Display current user's name
+                    document.getElementById('loginMessage').textContent = 'Login successful!';
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('mainMenu').style.display = 'block'; // Show main menu
+                } else {
+                    document.getElementById('loginMessage').textContent = 'Invalid credentials. Please try again.';
+                }
+            }).login(username, password);
+        }
+
+        // Handle signup
+        function signUp() {
+            const name = document.getElementById('signupName').value;
+            const username = document.getElementById('signupUsername').value;
+            const password = document.getElementById('signupPassword').value;
+
+            // Validation checks
+            const usernameRegex = /^\S+$/; // No spaces
+            const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/; // Letters and numbers
+
+            if (!usernameRegex.test(username)) {
+                document.getElementById('signupMessage').textContent = 'Username must not contain spaces.';
+                return;
+            }
+
+            if (!passwordRegex.test(password)) {
+                document.getElementById('signupMessage').textContent = 'Password must contain both letters and numbers and cannot contain spaces.';
+                return;
+            }
+
+            google.script.run.withSuccessHandler(response => {
+                if (response) {
+                    document.getElementById('signupMessage').textContent = 'Sign up successful! Please log in.';
+                    showLogin();
+                } else {
+                    document.getElementById('signupMessage').textContent = 'Username already taken.';
+                }
+            }).signUp(name, username, password);
+        }
+
+        // Show edit appointments section
+        function showEditAppointments() {
+            if (currentUser) {
+                document.getElementById('loadingSpinner').style.display = 'block'; // Show the loading spinner
+                google.script.run.withSuccessHandler(userAppointments => {
+                    document.getElementById('loadingSpinner').style.display = 'none'; // Hide the loading spinner
+                    userAppointments = JSON.parse(userAppointments);
+                    const appointmentListDiv = document.getElementById('appointmentList');
+                    appointmentListDiv.innerHTML = ''; // Clear existing list
+
+                    // Add a null check for userAppointments
+                    if (!userAppointments || userAppointments.length === 0) {
+                        appointmentListDiv.innerHTML = '<p>No appointments available at the moment.</p>';
+                        return;
+                    }
+
+                    const ul = document.createElement('ul');
+                    userAppointments.forEach(appointment => {
+                        const li = document.createElement('li');
+                        li.textContent = `${appointment.date} - ${appointment.time}: ${appointment.hospital} with Dr. ${appointment.doctor} (Reason: ${appointment.reason})`;
+                        ul.appendChild(li);
+                    });
+                    appointmentListDiv.appendChild(ul);
+                }).getUserAppointments(currentUser);
+            }
+            document.getElementById('editAppointmentsSection').style.display = 'block';
+            document.getElementById('mainMenu').style.display = 'none';
+        }
+
+        // Update the displayed list of appointments
+        function updateAppointmentList() {
+            const appointmentListDiv = document.getElementById('appointmentList');
+            appointmentListDiv.innerHTML = '';
+
+            if (appointments.length === 0) {
+                appointmentListDiv.innerHTML = '<p>No appointments available at the moment.</p>';
+            } else {
+                const ul = document.createElement('ul');
+                appointments.forEach(appointment => {
+                    const li = document.createElement('li');
+                    li.textContent = `${appointment.date} - ${appointment.time}: ${appointment.hospital} with Dr. ${appointment.doctor} (Reason: ${appointment.reason})`;
+                    ul.appendChild(li);
+                });
+                appointmentListDiv.appendChild(ul);
+            }
+        }
+
+        // Submit the new appointment
+        function submitAppointment() {
+            const hospital = document.getElementById('hospital').value;
+            const doctor = document.getElementById('doctor').value;
+            const date = document.getElementById('date').value;
+            const hour = document.getElementById('hour').value;
+            const minutes = document.getElementById('minutes').value;
+            const ampm = document.getElementById('ampm').value;
+            const reason = document.getElementById('reason').value;
+            const time = `${hour}:${minutes} ${ampm}`;
+
+            google.script.run.withSuccessHandler(() => {
+                appointments.push({ hospital, doctor, date, time, reason, user: currentUser });
+                updateAppointmentList();
+                goBackToEditAppointments();
+                document.getElementById('appointmentForm').reset(); // Reset form fields
+            }).addAppointment(hospital, doctor, date, time, reason, currentUser);
+        }
+
+        // Show the new appointment form
+        function newAppointment() {
+            document.getElementById('editAppointmentsSection').style.display = 'none';
+            document.getElementById('newAppointmentSection').style.display = 'block';
+        }
+
+        // Go back to the edit appointments section
+        function goBackToEditAppointments() {
+            document.getElementById('newAppointmentSection').style.display = 'none';
+            document.getElementById('editAppointmentsSection').style.display = 'block';
+        }
+
+        // Go back to the main menu
+        function goBackToMain() {
+            document.getElementById('editAppointmentsSection').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'block';
+        }
+
+        // Placeholder functions for Prescriptions and Patients
+        function editPrescriptions() {
+            alert('Edit Prescriptions functionality to be implemented.');
+        }
+
+        function editPatients() {
+            alert('Edit Patients functionality to be implemented.');
+        }
+
+        // Placeholder function for "Search Appointments"
+        function searchAppointments() {
+            alert('Search Appointments functionality will be added here.');
+        }
+    </script>
+</head>
+<body>
+    <div id="loginSection">
+        <h2>Login</h2>
+        <div id="loginMessage" class="message"></div>
+        <label for="loginUsername">Username:</label>
+        <input type="text" id="loginUsername" required>
+        <br>
+        <label for="loginPassword">Password:</label>
+        <input type="password" id="loginPassword" required>
+        <br>
+        <button onclick="login()">Login</button>
+        <button onclick="showSignup()">Sign Up</button>
+    </div>
+
+    <div id="signupSection" style="display:none;">
+        <h2>Sign Up</h2>
+        <div id="signupMessage" class="message"></div>
+        <label for="signupName">Name:</label>
+        <input type="text" id="signupName" required>
+        <br>
+        <label for="signupUsername">Username:</label>
+        <input type="text" id="signupUsername" required>
+        <br>
+        <label for="signupPassword">Password:</label>
+        <input type="password" id="signupPassword" required>
+        <br>
+        <button onclick="signUp()">Sign Up</button>
+        <button onclick="showLogin()">Back to Login</button>
+    </div>
+
+    <div id="mainMenu" style="display:none;">
+        <h2>Welcome, <span id="currentUserName"></span>!</h2>
+        <button onclick="showEditAppointments()">Edit Appointments</button>
+        <button onclick="editPrescriptions()">Edit Prescriptions</button>
+        <button onclick="editPatients()">Edit Patients</button>
+    </div>
+
+    <div id="editAppointmentsSection" style="display:none;">
+        <h2>Edit Appointments</h2>
+        <button onclick="goBackToMain()">Back to Main Menu</button>
+        <button onclick="newAppointment()">New Appointment</button>
+        <button onclick="searchAppointments()">Search Appointments</button>
+        <div id="loadingSpinner">
+            <h3>Loading...</h3>
+            <img src="https://media1.tenor.com/m/o8m3bKTsifUAAAAC/hold-on.gif" alt="Loading..." width="100">
+        </div>
+        <div id="appointmentList"></div>
+    </div>
+
+    <div id="newAppointmentSection" style="display:none;">
+        <h2>New Appointment</h2>
+        <form id="appointmentForm">
+            <label for="hospital">Hospital:</label>
+            <input type="text" id="hospital" required>
+            <br>
+            <label for="doctor">Doctor:</label>
+            <input type="text" id="doctor" required>
+            <br>
+            <label for="date">Date:</label>
+            <input type="date" id="date" required>
+            <br>
+            <label for="time">Time:</label>
+            <select id="hour" required>
+                <option value="">Hour</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+            </select>
+            <select id="minutes" required>
+                <option value="">Minutes</option>
+                <option value="00">00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+            </select>
+            <select id="ampm" required>
+                <option value="">AM/PM</option>
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+            </select>
+            <br>
+            <label for="reason">Reason for Visit:</label>
+            <input type="text" id="reason" required>
+            <br>
+            <button type="button" onclick="submitAppointment()">Submit Appointment</button>
+            <button type="button" onclick="goBackToEditAppointments()">Cancel</button>
+        </form>
+    </div>
+</body>
+</html>
