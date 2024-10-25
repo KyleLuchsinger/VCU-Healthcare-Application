@@ -25,8 +25,8 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
-        input[type="text"], input[type="password"], input[type="date"], select {
-            width: 100%;
+        input[type="text"], input[type="password"], input[type="date"], input[type="email"], select {
+            width: 25%;
             padding: 10px;
             margin: 10px 0;
             border: 1px solid #ccc;
@@ -58,6 +58,7 @@
         }
 
         #appointmentList li {
+            width: 75%;
             background-color: #f9f9f9;
             border: 1px solid #ddd;
             padding: 10px;
@@ -117,32 +118,39 @@
 
         // Handle signup
         function signUp() {
-            const name = document.getElementById('signupName').value;
-            const username = document.getElementById('signupUsername').value;
-            const password = document.getElementById('signupPassword').value;
+          const name = document.getElementById('signupName').value;
+          const email = document.getElementById('signupEmail').value; // Capture email
+          const username = document.getElementById('signupUsername').value;
+          const password = document.getElementById('signupPassword').value;
 
-            // Validation checks
-            const usernameRegex = /^\S+$/; // No spaces
-            const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/; // Letters and numbers
+          // Validation checks
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Simple email validation regex
+          const usernameRegex = /^\S+$/; // No spaces
+          const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/; // Letters and numbers
 
-            if (!usernameRegex.test(username)) {
-                document.getElementById('signupMessage').textContent = 'Username must not contain spaces.';
-                return;
-            }
+          if (!emailRegex.test(email)) {
+              document.getElementById('signupMessage').textContent = 'Please enter a valid email address.';
+              return;
+          }
 
-            if (!passwordRegex.test(password)) {
-                document.getElementById('signupMessage').textContent = 'Password must contain both letters and numbers and cannot contain spaces.';
-                return;
-            }
+          if (!usernameRegex.test(username)) {
+              document.getElementById('signupMessage').textContent = 'Username must not contain spaces.';
+              return;
+          }
 
-            google.script.run.withSuccessHandler(response => {
-                if (response) {
-                    document.getElementById('signupMessage').textContent = 'Sign up successful! Please log in.';
-                    showLogin();
-                } else {
-                    document.getElementById('signupMessage').textContent = 'Username already taken.';
-                }
-            }).signUp(name, username, password);
+          if (!passwordRegex.test(password)) {
+              document.getElementById('signupMessage').textContent = 'Password must contain both letters and numbers and cannot contain spaces.';
+              return;
+          }
+
+          google.script.run.withSuccessHandler(response => {
+              if (response) {
+                  document.getElementById('signupMessage').textContent = 'Sign up successful! Please log in.';
+                  showLogin();
+              } else {
+                  document.getElementById('signupMessage').textContent = 'Username already taken.';
+              }
+          }).signUp(name, email, username, password); // Pass email to server-side signUp function
         }
 
         // Show edit appointments section
@@ -162,9 +170,25 @@
                     }
 
                     const ul = document.createElement('ul');
-                    userAppointments.forEach(appointment => {
+                    userAppointments.forEach((appointment, index) => {
                         const li = document.createElement('li');
                         li.textContent = `${appointment.date} - ${appointment.time}: ${appointment.hospital} with Dr. ${appointment.doctor} (Reason: ${appointment.reason})`;
+                        // Edit button
+                        const editButton = document.createElement('button');
+                        editButton.textContent = 'Edit';
+                        editButton.onclick = function() {
+                            console.log(`Editing appointment at index: ${index}`); // Debugging statement
+                            openEditAppointment(index); // Pass the index to edit
+                        };
+                        // Delete button
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.onclick = function() {
+                            confirmDeleteAppointment(index); // Pass the index to delete
+                        };
+                        
+                        li.appendChild(editButton);
+                        li.appendChild(deleteButton);
                         ul.appendChild(li);
                     });
                     appointmentListDiv.appendChild(ul);
@@ -179,20 +203,69 @@
             const appointmentListDiv = document.getElementById('appointmentList');
             appointmentListDiv.innerHTML = '';
 
-            if (appointments.length === 0) {
+            if (appointments.length == 0) {
                 appointmentListDiv.innerHTML = '<p>No appointments available at the moment.</p>';
             } else {
                 const ul = document.createElement('ul');
-                appointments.forEach(appointment => {
+                appointments.forEach((appointment, index) => {
                     const li = document.createElement('li');
                     li.textContent = `${appointment.date} - ${appointment.time}: ${appointment.hospital} with Dr. ${appointment.doctor} (Reason: ${appointment.reason})`;
+
+                    // Edit button
+                    const editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.onclick = function() {
+                        console.log(`Editing appointment at index: ${index}`); // Debugging statement
+                        openEditAppointment(index); // Pass the index to edit
+                    };
+
+                    // Delete button
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.onclick = function() {
+                        confirmDeleteAppointment(index); // Pass the index to delete
+                    };
+
+                    li.appendChild(editButton);
+                    li.appendChild(deleteButton);
                     ul.appendChild(li);
                 });
                 appointmentListDiv.appendChild(ul);
             }
         }
 
-        // Submit the new appointment
+        // Open edit form for the selected appointment
+        function openEditAppointment(index) {
+            const appointment = appointments[index];
+            document.getElementById('hospital').value = appointment.hospital;
+            document.getElementById('doctor').value = appointment.doctor;
+            document.getElementById('date').value = appointment.date;
+            const [hour, minutes] = appointment.time.split(':');
+            document.getElementById('hour').value = hour;
+            document.getElementById('minutes').value = minutes.split(' ')[0]; // Get minutes only
+            document.getElementById('ampm').value = minutes.split(' ')[1]; // Get AM/PM
+            document.getElementById('reason').value = appointment.reason;
+
+            // Store index in a hidden field or variable for later use
+            document.getElementById('editIndex').value = index;
+            document.getElementById('newAppointmentSection').style.display = 'block';
+        }
+
+        // Confirm appointment deletion
+        function confirmDeleteAppointment(index) {
+            const confirmation = confirm("Are you sure you want to delete this appointment?");
+            if (confirmation) {
+                deleteAppointment(index);
+            }
+        }
+
+        // Function to delete the appointment
+        function deleteAppointment(index) {
+            appointments.splice(index, 1); // Remove the appointment from the array
+            updateAppointmentList(); // Refresh the appointment list
+        }
+
+        // Submit the new or edited appointment
         function submitAppointment() {
             const hospital = document.getElementById('hospital').value;
             const doctor = document.getElementById('doctor').value;
@@ -201,20 +274,60 @@
             const minutes = document.getElementById('minutes').value;
             const ampm = document.getElementById('ampm').value;
             const reason = document.getElementById('reason').value;
-            const time = `${hour}:${minutes} ${ampm}`;
+            const messageDiv = document.getElementById('appointmentMessage');
+            const editIndex = document.getElementById('editIndex').value; // Get the index for editing
 
-            google.script.run.withSuccessHandler(() => {
+            // Clear any previous messages
+            messageDiv.textContent = '';
+
+            // Check if all required fields are filled
+            if (!hospital || !doctor || !date || !hour || !minutes || !ampm || !reason) {
+                messageDiv.textContent = "Please fill in all required fields.";
+                return;
+            }
+
+            // Convert selected date and time into a JavaScript Date object
+            let appointmentDate = new Date(date);
+            let appointmentHour = parseInt(hour, 10);
+            appointmentHour += ampm === 'PM' && appointmentHour !== 12 ? 12 : (ampm === 'AM' && appointmentHour === 12 ? -12 : 0);
+            appointmentDate.setHours(appointmentHour, parseInt(minutes, 10), 0, 0); // Set hour, minutes, and seconds
+
+            // Get the current date and time
+            const now = new Date();
+            
+            // Check if the appointment date and time are at least 24 hours in the future
+            const twentyFourHoursLater = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+            if (appointmentDate < twentyFourHoursLater) {
+                messageDiv.textContent = "The appointment time must be at least 24 hours in the future.";
+                return;
+            }
+
+            // If editing an existing appointment
+            if (editIndex !== '') {
+                appointments[editIndex] = { hospital, doctor, date, time: `${hour}:${minutes} ${ampm}`, reason }; // Update the existing appointment
+            } else {
+                // If all validations pass, proceed to add the appointment
+                const time = `${hour}:${minutes} ${ampm}`;
                 appointments.push({ hospital, doctor, date, time, reason, user: currentUser });
-                updateAppointmentList();
-                goBackToEditAppointments();
-                document.getElementById('appointmentForm').reset(); // Reset form fields
-            }).addAppointment(hospital, doctor, date, time, reason, currentUser);
+            }
+
+            // Refresh the appointment list and reset form
+            updateAppointmentList();
+            goBackToEditAppointments();
+            document.getElementById('appointmentForm').reset(); // Reset form fields
+            document.getElementById('editIndex').value = ''; // Clear the edit index
         }
 
         // Show the new appointment form
         function newAppointment() {
             document.getElementById('editAppointmentsSection').style.display = 'none';
             document.getElementById('newAppointmentSection').style.display = 'block';
+        }
+
+        // Function to refresh the appointment list
+        function refreshAppointments() {
+            document.getElementById('loadingSpinner').style.display = 'block'; // Show loading spinner
+            showEditAppointments(); // Re-fetch and display appointments
         }
 
         // Go back to the edit appointments section
@@ -242,6 +355,40 @@
         function searchAppointments() {
             alert('Search Appointments functionality will be added here.');
         }
+
+        // Function to search for nearby hospitals based on the address provided
+        function searchNearbyHospitals() {
+            const address = document.getElementById('address').value;
+            const hospitalListDiv = document.getElementById('hospitalList');
+            
+            // Clear previous results
+            hospitalListDiv.innerHTML = '';
+            
+            // Check if the address field is filled
+            if (!address) {
+                hospitalListDiv.textContent = "Please enter an address.";
+                return;
+            }
+
+            // Call server-side function to get nearby hospitals
+            google.script.run.withSuccessHandler(hospitals => {
+                if (hospitals && hospitals.length > 0) {
+                    const ul = document.createElement('ul');
+                    hospitals.forEach(hospital => {
+                        const li = document.createElement('li');
+                        li.textContent = hospital.name;
+                        li.onclick = () => {
+                            document.getElementById('hospital').value = hospital.name; // Set the selected hospital name
+                            hospitalListDiv.innerHTML = ''; // Clear the list after selection
+                        };
+                        ul.appendChild(li);
+                    });
+                    hospitalListDiv.appendChild(ul);
+                } else {
+                    hospitalListDiv.textContent = "No hospitals found.";
+                }
+            }).findNearbyHospitals(address);
+        }
     </script>
 </head>
 <body>
@@ -264,6 +411,9 @@
         <label for="signupName">Name:</label>
         <input type="text" id="signupName" required>
         <br>
+        <label for="signupEmail">Email:</label> <!-- New email field -->
+        <input type="email" id="signupEmail" required>
+        <br>
         <label for="signupUsername">Username:</label>
         <input type="text" id="signupUsername" required>
         <br>
@@ -283,9 +433,11 @@
 
     <div id="editAppointmentsSection" style="display:none;">
         <h2>Edit Appointments</h2>
+        <input type="hidden" id="editIndex" value="">
         <button onclick="goBackToMain()">Back to Main Menu</button>
         <button onclick="newAppointment()">New Appointment</button>
-        <button onclick="searchAppointments()">Search Appointments</button>
+        <button onclick="searchAppointments()">Search</button>
+        <button onclick="refreshAppointments()">Refresh</button>
         <div id="loadingSpinner">
             <h3>Loading...</h3>
             <img src="https://media1.tenor.com/m/o8m3bKTsifUAAAAC/hold-on.gif" alt="Loading..." width="100">
@@ -295,7 +447,13 @@
 
     <div id="newAppointmentSection" style="display:none;">
         <h2>New Appointment</h2>
+        <div id="appointmentMessage" class="message"></div>
         <form id="appointmentForm">
+            <label for="address">Address:</label>
+            <input type="text" id="address" required>
+            <button type="button" onclick="searchNearbyHospitals()">Find Nearby Hospitals</button>
+            <div id="hospitalList" class="message"></div>
+            <br>
             <label for="hospital">Hospital:</label>
             <input type="text" id="hospital" required>
             <br>
@@ -341,5 +499,6 @@
             <button type="button" onclick="goBackToEditAppointments()">Cancel</button>
         </form>
     </div>
+
 </body>
 </html>
