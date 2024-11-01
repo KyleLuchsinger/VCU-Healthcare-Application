@@ -16,7 +16,7 @@
             color: #444;
         }
 
-        #loginSection, #signupSection, #mainMenu, #editAppointmentsSection, #newAppointmentSection {
+        #loginSection, #signupSection, #mainMenu, #editAppointmentsSection, #newAppointmentSection, #editModal {
             background-color: #fff;
             border: 1px solid #ddd;
             border-radius: 5px;
@@ -80,6 +80,7 @@
     <script>
         let appointments = [];  // Array to store appointments
         let currentUser = ''; // Store the current logged-in user
+        let editingKey = null;
 
         // Show the login section on page load
         window.onload = function() {
@@ -155,6 +156,7 @@
 
         // Show edit appointments section
         function showEditAppointments() {
+            closeModal();
             if (currentUser) {
                 document.getElementById('loadingSpinner').style.display = 'block'; // Show the loading spinner
                 google.script.run.withSuccessHandler(userAppointments => {
@@ -178,13 +180,13 @@
                         editButton.textContent = 'Edit';
                         editButton.onclick = function() {
                             console.log(`Editing appointment at index: ${index}`); // Debugging statement
-                            openEditAppointment(index); // Pass the index to edit
+                            openEditModal(appointment); // Pass the index to edit
                         };
                         // Delete button
                         const deleteButton = document.createElement('button');
                         deleteButton.textContent = 'Delete';
                         deleteButton.onclick = function() {
-                            confirmDeleteAppointment(index); // Pass the index to delete
+                            confirmDeleteAppointment(appointment); // Pass the index to delete
                         };
                         
                         li.appendChild(editButton);
@@ -216,14 +218,14 @@
                     editButton.textContent = 'Edit';
                     editButton.onclick = function() {
                         console.log(`Editing appointment at index: ${index}`); // Debugging statement
-                        openEditAppointment(index); // Pass the index to edit
+                        openEditModal(appointment); // Pass the index to edit
                     };
 
                     // Delete button
                     const deleteButton = document.createElement('button');
                     deleteButton.textContent = 'Delete';
                     deleteButton.onclick = function() {
-                        confirmDeleteAppointment(index); // Pass the index to delete
+                        confirmDeleteAppointment(appointment); // Pass the index to delete
                     };
 
                     li.appendChild(editButton);
@@ -232,37 +234,93 @@
                 });
                 appointmentListDiv.appendChild(ul);
             }
+
+            google.script.run.updateAppointmentList(appointments);
         }
 
-        // Open edit form for the selected appointment
-        function openEditAppointment(index) {
-            const appointment = appointments[index];
-            document.getElementById('hospital').value = appointment.hospital;
-            document.getElementById('doctor').value = appointment.doctor;
-            document.getElementById('date').value = appointment.date;
-            const [hour, minutes] = appointment.time.split(':');
-            document.getElementById('hour').value = hour;
-            document.getElementById('minutes').value = minutes.split(' ')[0]; // Get minutes only
-            document.getElementById('ampm').value = minutes.split(' ')[1]; // Get AM/PM
-            document.getElementById('reason').value = appointment.reason;
+        // function renderAppointmentList(appointments) {
+        //     closeModal()
+        //     const appointmentListDiv = document.getElementById('appointmentList');
+        //     appointmentListDiv.innerHTML = ''; // Clear existing appointments
 
-            // Store index in a hidden field or variable for later use
-            document.getElementById('editIndex').value = index;
-            document.getElementById('newAppointmentSection').style.display = 'block';
+        //     const data = JSON.parse(appointments);
+        //     if (data.length === 0) {
+        //         appointmentListDiv.innerHTML = '<p>No appointments found.</p>';
+        //         return;
+        //     }
+
+        //     data.forEach(appointment => {
+        //         const listItem = document.createElement('div');
+        //         listItem.textContent = `Hospital: ${appointment.hospital}, Doctor: ${appointment.doctor}, Date: ${appointment.date}, Time: ${appointment.time}, Reason: ${appointment.reason}`;
+
+        //         // Edit button
+        //         const editButton = document.createElement('button');
+        //         editButton.textContent = 'Edit';
+        //         editButton.onclick = () => openEditModal(appointment);
+        //         listItem.appendChild(editButton);
+
+        //         // Delete button
+        //         const deleteButton = document.createElement('button');
+        //         deleteButton.textContent = 'Delete';
+        //         deleteButton.onclick = () => deleteAppointment(appointment.key);
+        //         listItem.appendChild(deleteButton);
+
+        //         appointmentListDiv.appendChild(listItem);
+        //     });
+        // }
+
+        // Open edit form for the selected appointment
+        function openEditModal(appointment) {
+            // Populate the form with the selected appointment details
+            document.getElementById('editHospital').value = appointment.hospital;
+            document.getElementById('editDoctor').value = appointment.doctor;
+            document.getElementById('editDate').value = appointment.date;
+
+            // Split the time into hour, minute, and AM/PM
+            const [hour, minutePart] = appointment.time.split(':');
+            const [minute, amPm] = minutePart.split(' ');
+            document.getElementById('editHour').value = hour;
+            document.getElementById('editMinute').value = minute;
+            document.getElementById('editAmPm').value = amPm;
+
+            document.getElementById('editReason').value = appointment.reason;
+
+            // Set the key for editing
+            editingKey = appointment.key; // Store the key of the appointment being edited
+            console.log("Editing "+editingKey)
+
+            // Open the modal
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function resetEditForm() {
+            document.getElementById('editAppointmentForm').reset();
+            editingKey = null; // Clear the editing key
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none'; // Hide the modal
+            resetEditForm(); // Reset form fields
+            editingKey = null;
         }
 
         // Confirm appointment deletion
-        function confirmDeleteAppointment(index) {
+        function confirmDeleteAppointment(appointment) {
             const confirmation = confirm("Are you sure you want to delete this appointment?");
             if (confirmation) {
-                deleteAppointment(index);
+                deleteAppointment(appointment.key);
             }
         }
 
         // Function to delete the appointment
-        function deleteAppointment(index) {
-            appointments.splice(index, 1); // Remove the appointment from the array
-            updateAppointmentList(); // Refresh the appointment list
+        function deleteAppointment(key) {
+            appointments = appointments.filter(a => a.key !== key); // Remove from local state
+            google.script.run.updateAppointmentList(appointments);                   
+        }
+
+        // Function to generate a unique key (UUID) for appointments
+        function generateUniqueKey() {
+            return 'appt-' + new Date().getTime() + '-' + Math.floor(Math.random() * 10000);
         }
 
         // Submit the new or edited appointment
@@ -275,7 +333,6 @@
             const ampm = document.getElementById('ampm').value;
             const reason = document.getElementById('reason').value;
             const messageDiv = document.getElementById('appointmentMessage');
-            const editIndex = document.getElementById('editIndex').value; // Get the index for editing
 
             // Clear any previous messages
             messageDiv.textContent = '';
@@ -302,20 +359,80 @@
                 return;
             }
 
-            // If editing an existing appointment
-            if (editIndex !== '') {
-                appointments[editIndex] = { hospital, doctor, date, time: `${hour}:${minutes} ${ampm}`, reason }; // Update the existing appointment
-            } else {
-                // If all validations pass, proceed to add the appointment
-                const time = `${hour}:${minutes} ${ampm}`;
-                appointments.push({ hospital, doctor, date, time, reason, user: currentUser });
-            }
+            const time = `${hour}:${minutes} ${ampm}`;
+            appointments.push({key: generateUniqueKey(), hospital, doctor, date, time, reason, user: currentUser });
 
-            // Refresh the appointment list and reset form
-            updateAppointmentList();
+            updateAppointmentList(appointments);
             goBackToEditAppointments();
             document.getElementById('appointmentForm').reset(); // Reset form fields
             document.getElementById('editIndex').value = ''; // Clear the edit index
+        }
+
+        function submitEditAppointment() {
+            const hospital = document.getElementById('editHospital').value;
+            const doctor = document.getElementById('editDoctor').value;
+            const date = document.getElementById('editDate').value;
+            const hour = document.getElementById('editHour').value;
+            const minute = document.getElementById('editMinute').value;
+            const amPm = document.getElementById('editAmPm').value;
+            const reason = document.getElementById('editReason').value;
+            const messageDiv = document.getElementById('editAppointmentMessage');
+
+            // Create the new appointment object with time formatted
+            const time = `${hour}:${minute} ${amPm}`;
+            const updatedAppointment = { 
+                key: editingKey, // Use the editing key for the appointment
+                hospital, 
+                doctor, 
+                date, 
+                time, 
+                reason,
+                user: currentUser
+            };
+
+            if (!hospital || !doctor || !date || !hour || !minutes || !amPm || !reason) {
+                messageDiv.textContent = "Please fill in all required fields.";
+                return;
+            }
+
+            // Convert selected date and time into a JavaScript Date object
+            let editAppointmentDate = new Date(date);
+            //let editAppointmentHour = parseInt(hour, 10);
+            //editAppointmentHour += amPm === 'PM' && editAppointmentHour !== 12 ? 12 : (amPm === 'AM' && editAppointmentHour === 12 ? -12 : 0);
+            //editAppointmentDate.setHours(editAppointmentHour, parseInt(minutes, 10), 0, 0); // Set hour, minutes, and seconds
+
+            // Get the current date and time
+            const now = new Date();
+            
+            // Check if the appointment date and time are at least 24 hours in the future
+            const editTwentyFourHoursLater = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+            console.log(editTwentyFourHoursLater);
+            console.log(editAppointmentDate);
+
+            if (editAppointmentDate < editTwentyFourHoursLater) {
+                messageDiv.textContent = "The appointment time must be at least 24 hours in the future.";
+                return;
+            }
+
+            // Find the index of the appointment to edit and update it
+            const index = appointments.findIndex(app => app.key === editingKey);
+            if (index > -1) {
+                appointments[index] = updatedAppointment; // Update the existing appointment
+            }
+
+            google.script.run.withSuccessHandler(onEditSuccess)
+                            .updateAppointmentList(appointments);
+            resetEditForm(); // Reset edit form after submission
+        }
+
+        function onEditSuccess(response) {
+            if (response) {
+                alert('Appointment updated successfully!');
+                updateAppointmentList(); // Refresh the appointment list
+                closeModal(); // Close the modal after submission
+            } else {
+                alert('Failed to update appointment.');
+            }
         }
 
         // Show the new appointment form
@@ -358,9 +475,10 @@
 
         // Function to search for nearby hospitals based on the address provided
         function searchNearbyHospitals() {
+            console.log("New! "+editIndex)
             const address = document.getElementById('address').value;
-            const hospitalListDiv = document.getElementById('hospitalList');
-            
+            const hospitalListDiv = document.getElementById("hospitalList");
+
             // Clear previous results
             hospitalListDiv.innerHTML = '';
             
@@ -371,7 +489,7 @@
             }
 
             // Call server-side function to get nearby hospitals
-            google.script.run.withSuccessHandler(hospitals => {
+              google.script.run.withSuccessHandler(hospitals => {
                 if (hospitals && hospitals.length > 0) {
                     const ul = document.createElement('ul');
                     hospitals.forEach(hospital => {
@@ -389,6 +507,11 @@
                 }
             }).findNearbyHospitals(address);
         }
+
+        // Call updateAppointmentList() when the page loads to display current appointments
+        // window.onload = function() {
+        //     updateAppointmentList();
+        // };
     </script>
 </head>
 <body>
@@ -443,6 +566,40 @@
             <img src="https://media1.tenor.com/m/o8m3bKTsifUAAAAC/hold-on.gif" alt="Loading..." width="100">
         </div>
         <div id="appointmentList"></div>
+
+        <!-- Edit Modal -->
+        <div id="editModal" style="display:none;">
+            <h2>Edit Appointment</h2>
+            <div id="editAppointmentMessage" class="message"></div>
+            <form id="editAppointmentForm">
+                <label for="editHospital">Hospital:</label>
+                <input type="text" id="editHospital" required><br>
+
+                <label for="editDoctor">Doctor:</label>
+                <input type="text" id="editDoctor" required><br>
+
+                <label for="editDate">Date:</label>
+                <input type="date" id="editDate" required><br>
+
+                <label for="editHour">Hour:</label>
+                <input type="number" id="editHour" min="1" max="12" required>
+                
+                <label for="editMinute">Minutes:</label>
+                <input type="number" id="editMinute" min="0" max="59" required>
+
+                <label for="editAmPm">AM/PM:</label>
+                <select id="editAmPm" required>
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                </select><br>
+
+                <label for="editReason">Reason:</label>
+                <input type="text" id="editReason" required><br>
+
+                <button type="button" onclick="submitEditAppointment()">Update Appointment</button>
+                <button type="button" onclick="closeModal()">Cancel</button>
+            </form>
+        </div>
     </div>
 
     <div id="newAppointmentSection" style="display:none;">
@@ -450,7 +607,7 @@
         <div id="appointmentMessage" class="message"></div>
         <form id="appointmentForm">
             <label for="address">Address:</label>
-            <input type="text" id="address" required>
+            <input type="text" id="address">
             <button type="button" onclick="searchNearbyHospitals()">Find Nearby Hospitals</button>
             <div id="hospitalList" class="message"></div>
             <br>
