@@ -651,7 +651,6 @@
         </div>
     </div>
 
-    <!-- Add New Prescription Page -->
     <div id="newPrescriptionPage" class="container">
         <h1>New Prescription</h1>
         
@@ -757,7 +756,7 @@
         </form>
     </div>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=[APIKEY]&libraries=places"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key="+google.script.run.getKey()+"&libraries=places"></script>
     <script>
         // Google Maps Places API Integration with Address Input
         async function searchNearbyHospitals(address) {
@@ -1167,7 +1166,6 @@
             }
         }
 
-        // Add this to your showEditModal function
         function showEditModal(appointmentId) {
             const appointment = currentAppointments.find(apt => apt.id === appointmentId);
             if (!appointment) return;
