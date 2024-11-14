@@ -410,7 +410,6 @@ function refillPrescription(prescriptionId) {
   throw new Error('Prescription not found');
 }
 
-// Add these email functions to your existing email section
 function sendPrescriptionConfirmation(email, prescriptionData) {
   const subject = 'New Prescription Created';
   const body = `Dear Patient,\n\n` +
